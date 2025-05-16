@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-kube-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-kube-demo
+  template:
+    metadata:
+      labels:
+        app: node-kube-demo
+    spec:
+      containers:
+      - name: node-kube-demo
+        image: botunga/node-kube-demo:latest
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-kube-demo-service
+spec:
+  selector:
+    app: node-kube-demo
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+  type: NodePort
