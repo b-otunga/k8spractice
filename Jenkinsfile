@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Clone') {
             steps {
-                git 'https://github.com/b-otunga/node-kube-demo.git'
+                git credentialsId: 'github-creds', url: 'https://github.com/b-otunga/node-kube-demo.git'
             }
         }
 
