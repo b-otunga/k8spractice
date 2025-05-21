@@ -2,9 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USERNAME = "botunga"
-        DOCKERHUB_PASSWORD = "gangster16"
         IMAGE_NAME = "botunga/node-kube-demo"
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     }
 
     stages {
@@ -24,7 +23,8 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 sh 'docker build -t $IMAGE_NAME .'
-                sh "echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin"
+                sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
+
                 sh 'docker push $IMAGE_NAME'
             }
         }
