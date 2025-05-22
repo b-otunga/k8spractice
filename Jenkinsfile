@@ -13,7 +13,7 @@ pipeline {
             }
         }
 
-        stage('Install Node.js, Docker & kubectl') {
+        stage('Install Node.js & kubectl') {
             steps {
                 sh '''
                     set -e
@@ -25,29 +25,6 @@ pipeline {
                     curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
                     apt-get update
                     apt-get install -y nodejs
-
-                    echo "[*] Installing Docker dependencies..."
-                    apt-get install -y ca-certificates curl gnupg lsb-release
-
-                    echo "[*] Setting up Docker APT keyring..."
-                    install -m 0755 -d /etc/apt/keyrings
-                    curl -fsSL https://download.docker.com/linux/debian/gpg -o /tmp/docker.gpg
-
-                    if [ ! -s /tmp/docker.gpg ]; then
-                        echo "ERROR: Docker GPG key download failed or file is empty!"
-                        exit 1
-                    fi
-
-                    gpg --dearmor --batch -o /etc/apt/keyrings/docker.gpg /tmp/docker.gpg
-                    rm /tmp/docker.gpg
-                    chmod a+r /etc/apt/keyrings/docker.gpg
-
-                    echo "[*] Adding Docker APT repository for Debian..."
-                    . /etc/os-release
-                    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $VERSION_CODENAME stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-                    apt-get update
-                    apt-get install -y docker-ce-cli containerd.io
 
                     echo "[*] Installing kubectl..."
                     curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
