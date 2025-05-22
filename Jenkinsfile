@@ -1,7 +1,7 @@
 pipeline {
     agent {
         docker {
-            image 'docker:24.0.5-cli' // Docker CLI image
+            image 'docker:24.0.5-dind'  // Docker daemon + CLI
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
     }
@@ -20,6 +20,7 @@ pipeline {
 
         stage('Build & Test') {
             steps {
+                sh 'apk add --no-cache nodejs npm' // install node & npm
                 sh 'npm install'
                 sh 'node index.js & sleep 2 && curl -f http://localhost:3000'
             }
