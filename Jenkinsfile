@@ -12,27 +12,34 @@ pipeline {
                 git credentialsId: 'github-creds', url: 'https://github.com/b-otunga/k8spractice.git'
             }
         }
-
         stage('Install Node.js') {
-            steps {
-                sh '''
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-		    apt-get update
-                    apt-get install -y nodejs
+    steps {
+        sh '''
+            # Node.js installation (already looks fine based on logs)
+            curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+            apt-get update
+            apt-get install -y nodejs
 
-                    apt-get install -y ca-certificates curl gnupg lsb-release
-                    install -m 0755 -d /etc/apt/keyrings
-                    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor --batch -o /etc/apt/keyrings/docker.gpg
-                    chmod a+r /etc/apt/keyrings/docker.gpg
-                    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-                    apt-get update
-                    apt-get install -y docker-ce-cli containerd.io
+            # Docker CLI and Kubectl Installation
+            apt-get install -y ca-certificates curl gnupg lsb-release
+            
+            # --- MODIFIED DOCKER GPG KEY INSTALLATION ---
+            install -m 0755 -d /etc/apt/keyrings
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+            chmod a+r /etc/apt/keyrings/docker.gpg
+            # --- END MODIFIED ---
 
-                    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/arm64/kubectl
-                    chmod +x kubectl
-                    mv kubectl /usr/local/bin/
-                '''
-           } }
+            echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+            apt-get update
+            apt-get install -y docker-ce-cli containerd.io
+
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/arm64/kubectl
+            chmod +x kubectl
+            mv kubectl /usr/local/bin/
+        '''
+    }
+}
+        
 
 
 
