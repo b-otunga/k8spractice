@@ -2,49 +2,37 @@ pipeline {
     agent any
 
     environment {
-        NODE_ENV = 'development'
-    }
-
-    tools {
-        nodejs 'NodeJS_18' // Make sure Jenkins has a tool named this
+        IMAGE_NAME = "botunga/node-kube-demo"
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
     }
 
     stages {
-        stage('Checkout') {
+        stage('Clone') {
             steps {
-                echo 'Checking out code...'
-                checkout scm
+                git credentialsId: 'github-creds', url: 'https://github.com/b-otunga/k8spractice.git'
             }
         }
 
-        stage('Install Dependencies') {
+        stage('Build & Test') {
             steps {
-                echo 'Installing dependencies...'
                 sh 'npm install'
+                sh 'node index.js & sleep 2 && curl -f http://localhost:3000'
             }
         }
 
-        stage('Run Tests') {
+        stage('Docker Build & Push') {
             steps {
-                echo 'Running tests...'
-                sh 'npm test'
+                sh 'docker build -t $IMAGE_NAME .'
+                sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
+
+                sh 'docker push $IMAGE_NAME'
             }
         }
 
-        stage('Build') {
+        stage('Deploy to Kubernetes') {
             steps {
-                echo 'Building app...'
-                sh 'npm run build || echo "No build script defined"'
+                sh 'kubectl apply -f k8s-deployment.yaml'
             }
-        }
-    }
-
-    post {
-        success {
-            echo 'Pipeline succeeded!'
-        }
-        failure {
-            echo 'Pipeline failed.'
         }
     }
 }
