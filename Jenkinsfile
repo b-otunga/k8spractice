@@ -2,84 +2,49 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = 'yourdockerhubusername/yourimagename'
-        DOCKER_TAG = 'latest'
+        NODE_ENV = 'development'
+    }
+
+    tools {
+        nodejs 'NodeJS_18' // Make sure Jenkins has a tool named this
     }
 
     stages {
-        stage('Clone') {
+        stage('Checkout') {
             steps {
-                git credentialsId: 'github-creds', url: 'https://github.com/b-otunga/k8spractice.git'
+                echo 'Checking out code...'
+                checkout scm
             }
         }
 
-        stage('Install Node.js & kubectl') {
+        stage('Install Dependencies') {
             steps {
-                sh '''
-                    set -e
-
-                    echo "[*] Updating system..."
-                    apt-get update
-
-                    echo "[*] Installing Node.js 18..."
-                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-                    apt-get update
-                    apt-get install -y nodejs
-
-                    echo "[*] Installing kubectl..."
-                    curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-                    chmod +x kubectl
-                    mv kubectl /usr/local/bin/
-                '''
+                echo 'Installing dependencies...'
+                sh 'npm install'
             }
         }
 
-        stage('Build & Test') {
+        stage('Run Tests') {
             steps {
-                sh '''
-                    echo "[*] Installing dependencies..."
-                    npm install
-
-                    echo "[*] Running tests..."
-                    npm test || true
-                '''
+                echo 'Running tests...'
+                sh 'npm test'
             }
         }
 
-        stage('Docker Build & Push') {
-            environment {
-                DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-            }
+        stage('Build') {
             steps {
-                sh '''
-                    echo "[*] Logging in to Docker Hub..."
-                    echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
-
-                    echo "[*] Building Docker image..."
-                    docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
-
-                    echo "[*] Pushing Docker image..."
-                    docker push $DOCKER_IMAGE:$DOCKER_TAG
-                '''
-            }
-        }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                sh '''
-                    echo "[*] Deploying to Kubernetes..."
-                    kubectl apply -f k8s/
-                '''
+                echo 'Building app...'
+                sh 'npm run build || echo "No build script defined"'
             }
         }
     }
 
     post {
-        failure {
-            echo 'Pipeline failed. Please check logs above.'
-        }
         success {
             echo 'Pipeline succeeded!'
+        }
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }
