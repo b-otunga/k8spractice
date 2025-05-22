@@ -4,6 +4,7 @@ pipeline {
             image 'docker:24.0.5-cli' // Docker CLI image
             args '-v /var/run/docker.sock:/var/run/docker.sock'
         }
+    }
 
     environment {
         IMAGE_NAME = "botunga/node-kube-demo"
@@ -28,7 +29,6 @@ pipeline {
             steps {
                 sh 'docker build -t $IMAGE_NAME .'
                 sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
-
                 sh 'docker push $IMAGE_NAME'
             }
         }
