@@ -16,13 +16,13 @@ pipeline {
         stage('Install Node.js') {
             steps {
                 sh '''
-                    # Install sudo if it's not already present on the agent
+                    # Ensure apt-get update is run before installing sudo
                     apt-get update
-                    apt-get install -y sudo
+                    apt-get install -y sudo # Keep this if needed, remove if 'sudo' is already available or running as root
 
                     # Install Node.js
                     curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-                    apt-get update
+                    apt-get update # Re-update after Node.js repo
                     apt-get install -y nodejs
 
                     # Install Docker CLI and Kubectl prerequisites
@@ -31,12 +31,26 @@ pipeline {
                     # Create directory for APT keyrings
                     install -m 0755 -d /etc/apt/keyrings
 
-                    # Download and dearmor Docker GPG key using sudo and batch mode
-                    # Use 'sudo' if the Jenkins user needs elevated privileges to write to /etc/apt/keyrings
-                    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --batch -o /etc/apt/keyrings/docker.gpg
+                    # --- CRUCIAL CHANGE: Download GPG key to a temp file first ---
+                    # Use -o to save the output to a file
+                    curl -fsSL -o /tmp/docker_gpg_key.asc https://download.docker.com/linux/ubuntu/gpg
                     
+                    # Check if the download was successful and the file is not empty
+                    if [ ! -s /tmp/docker_gpg_key.asc ]; then
+                        echo "ERROR: Docker GPG key download failed or file is empty!"
+                        exit 1 # Fail the pipeline early
+                    fi
+
+                    # Process the downloaded key using sudo and batch mode
+                    # Use 'sudo' if the Jenkins user needs elevated privileges
+                    sudo gpg --dearmor --batch -o /etc/apt/keyrings/docker.gpg /tmp/docker_gpg_key.asc
+                    
+                    # Clean up the temporary file
+                    rm /tmp/docker_gpg_key.asc
+
                     # Set appropriate permissions for the GPG key file
                     chmod a+r /etc/apt/keyrings/docker.gpg
+                    # --- END CRUCIAL CHANGE ---
 
                     # Add Docker APT repository
                     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
@@ -65,7 +79,6 @@ pipeline {
         stage('Docker Build & Push') {
             steps {
                 sh 'docker build -t $IMAGE_NAME .'
-                // Login to Docker Hub using credentials from Jenkins's credential store
                 sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
                 sh 'docker push $IMAGE_NAME'
             }
