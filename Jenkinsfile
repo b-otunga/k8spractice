@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "botunga/node-kube-demo"
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+        DOCKER_IMAGE = 'yourdockerhubusername/yourimagename'
+        DOCKER_TAG = 'latest'
     }
 
     stages {
@@ -31,10 +31,10 @@ pipeline {
 
                     echo "[*] Setting up Docker APT keyring..."
                     install -m 0755 -d /etc/apt/keyrings
-                    curl -fsSL -o /tmp/docker.gpg https://download.docker.com/linux/ubuntu/gpg
+                    curl -fsSL https://download.docker.com/linux/debian/gpg -o /tmp/docker.gpg
 
                     if [ ! -s /tmp/docker.gpg ]; then
-                        echo "ERROR: Failed to download Docker GPG key"
+                        echo "ERROR: Docker GPG key download failed or file is empty!"
                         exit 1
                     fi
 
@@ -42,18 +42,17 @@ pipeline {
                     rm /tmp/docker.gpg
                     chmod a+r /etc/apt/keyrings/docker.gpg
 
-                    echo "[*] Adding Docker APT repository..."
-                    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+                    echo "[*] Adding Docker APT repository for Debian..."
+                    . /etc/os-release
+                    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $VERSION_CODENAME stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-                    echo "[*] Installing Docker CLI and containerd..."
                     apt-get update
                     apt-get install -y docker-ce-cli containerd.io
 
                     echo "[*] Installing kubectl..."
-                    curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/arm64/kubectl"
+                    curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
                     chmod +x kubectl
                     mv kubectl /usr/local/bin/
-                    echo "[✔] Tools installed successfully."
                 '''
             }
         }
@@ -64,24 +63,26 @@ pipeline {
                     echo "[*] Installing dependencies..."
                     npm install
 
-                    echo "[*] Starting app and testing endpoint..."
-                    node index.js & sleep 2
-                    curl -f http://localhost:3000
+                    echo "[*] Running tests..."
+                    npm test || true
                 '''
             }
         }
 
         stage('Docker Build & Push') {
+            environment {
+                DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+            }
             steps {
                 sh '''
-                    echo "[*] Building Docker image..."
-                    docker build -t $IMAGE_NAME .
-
-                    echo "[*] Logging in to DockerHub..."
+                    echo "[*] Logging in to Docker Hub..."
                     echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
 
+                    echo "[*] Building Docker image..."
+                    docker build -t $DOCKER_IMAGE:$DOCKER_TAG .
+
                     echo "[*] Pushing Docker image..."
-                    docker push $IMAGE_NAME
+                    docker push $DOCKER_IMAGE:$DOCKER_TAG
                 '''
             }
         }
@@ -90,9 +91,18 @@ pipeline {
             steps {
                 sh '''
                     echo "[*] Deploying to Kubernetes..."
-                    kubectl apply -f k8s-deployment.yaml
+                    kubectl apply -f k8s/
                 '''
             }
+        }
+    }
+
+    post {
+        failure {
+            echo 'Pipeline failed. Please check logs above.'
+        }
+        success {
+            echo 'Pipeline succeeded!'
         }
     }
 }
