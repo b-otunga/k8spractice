@@ -15,6 +15,7 @@ pipeline {
         stage('Install Node.js') {
     steps {
         sh '''
+            apt-get install -y sudo
             # Node.js installation (already looks fine based on logs)
             curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
             apt-get update
@@ -25,7 +26,7 @@ pipeline {
             
             # --- MODIFIED DOCKER GPG KEY INSTALLATION ---
             install -m 0755 -d /etc/apt/keyrings
-            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+            curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
             chmod a+r /etc/apt/keyrings/docker.gpg
             # --- END MODIFIED ---
 
