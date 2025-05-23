@@ -1,10 +1,6 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:24.0.5-dind'  // Docker daemon + CLI
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    // CHANGE THIS LINE
+    agent { label 'dind-agent' } 
 
     environment {
         IMAGE_NAME = "botunga/node-kube-demo"
@@ -18,9 +14,26 @@ pipeline {
             }
         }
 
+        stage('Install Node.js & Tools') {
+            steps {
+                sh '''
+                    # Install Node.js
+                    curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+                    apt-get update
+                    apt-get install -y nodejs
+
+                    # Install kubectl (needed on the agent for 'kubectl apply')
+                    # This assumes the agent base image (jenkins/jnlp-agent) is debian/ubuntu-like
+                    apt-get install -y ca-certificates curl gnupg lsb-release
+                    curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+                    chmod +x kubectl
+                    mv kubectl /usr/local/bin/
+                '''
+            }
+        }
+
         stage('Build & Test') {
             steps {
-                sh 'apk add --no-cache nodejs npm' // install node & npm
                 sh 'npm install'
                 sh 'node index.js & sleep 2 && curl -f http://localhost:3000'
             }
